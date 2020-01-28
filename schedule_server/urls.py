@@ -1,4 +1,4 @@
-    """schedule_server URL Configuration
+"""schedule_server URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/3.0/topics/http/urls/
@@ -15,7 +15,22 @@ Including another URLconf
 """
 from django.urls import path, include
 from rest_framework import routers
+from rest_framework.urlpatterns import format_suffix_patterns
+
+from schedule_server import views
+
+router = routers.DefaultRouter()
+router.register(r'users', views.UserViewSet)
+# router.register(r'groups', views.GroupViewSet)
+router.register(r'subjects', views.SubjectViewSet, basename='subject')
+router.register(r'teachers', views.TeacherViewSet, basename='teacher')
+router.register(r'class-types', views.ClassTypeViewSet, basename='class-type')
+router.register(r'classes', views.ClassViewSet, basename='class')
+router.register(r'times', views.TimeViewSet, basename='time')
+router.register(r'tasks', views.TaskViewSet, basename='task')
 
 urlpatterns = [
-    path('', include(router.urls))
+    path('', include(router.urls)),
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('schedule/<str:date>', views.schedule),
 ]
