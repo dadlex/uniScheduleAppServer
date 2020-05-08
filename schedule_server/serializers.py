@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from schedule_server import models
+from schedule_server.models import Subject, ClassType, Teacher, Class
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -43,6 +44,8 @@ class SubjectSerializer(serializers.ModelSerializer):
 
 
 class TeacherSerializer(serializers.ModelSerializer):
+    phone = serializers.CharField(allow_blank=True)
+    email = serializers.CharField(allow_blank=True)
     owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
@@ -62,11 +65,20 @@ class ClassSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     subject = SubjectSerializer()
     type = ClassTypeSerializer()
-    teacher = TeacherSerializer()
+    teacher = TeacherSerializer(required=False)
 
     class Meta:
         model = models.Class
         fields = ['id', 'subject', 'type', 'teacher', 'location', 'owner', 'created']
+
+    def create(self, validated_data):
+        subject, _ = Subject.objects.get_or_create(owner=validated_data['owner'], **validated_data.pop('subject'))
+        class_type, _ = ClassType.objects.get_or_create(owner=validated_data['owner'], **validated_data.pop('type'))
+        if 'teacher' in validated_data:
+            teacher, _ = Teacher.objects.get_or_create(owner=validated_data['owner'], **validated_data.pop('teacher'))
+        else:
+            teacher = None
+        return Class.objects.create(subject=subject, type=class_type, teacher=teacher, **validated_data)
 
 
 class TimeSerializer(serializers.ModelSerializer):

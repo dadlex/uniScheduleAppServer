@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from schedule_server import models, serializers
+from schedule_server.models import Task
 from schedule_server.occurances import is_occurrence
 from schedule_server.permissions import IsOwnerOrAdmin
 from schedule_server.serializers import UserSerializer
@@ -183,8 +184,8 @@ def schedule(request, date, format=None):
             Q(date_end__gte=viewing_date) | Q(date_end__isnull=True),
             Q(days_of_week__contains=weekday) | Q(days_of_week__isnull=True)
         )
-        class_ids = [time.class_id for time in times
-                     if is_occurrence(viewing_date, time.date_start, datetime.timedelta(int(time.period)))]
+        times = [time for time in times
+                 if is_occurrence(viewing_date, time.date_start, datetime.timedelta(int(time.period)))]
 
         # return db.rawQuery(
         #     """
@@ -204,6 +205,14 @@ def schedule(request, date, format=None):
         #     ORDER BY timeStart ASC""", null
         # )
 
-        classes = models.Class.objects.filter(id__in=class_ids)
-        serializer = serializers.ClassSerializer(classes, many=True)
-        return Response(serializer.data)
+        response = []
+        for time in times:
+            class_ = models.Class.objects.get(id=time.class_id)
+            time = serializers.TimeSerializer(time).data
+            time.pop('class')
+
+            item = serializers.ClassSerializer(class_).data
+            item['time_start'] = time['time_start']
+            item['time_end'] = time['time_end']
+            response.append(item)
+        return Response(response)
