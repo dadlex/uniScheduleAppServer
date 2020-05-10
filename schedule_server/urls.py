@@ -32,5 +32,5 @@ router.register(r'tasks', views.TaskViewSet, basename='task')
 urlpatterns = [
     path('', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    path('schedule/<str:date>', views.schedule),
+    path('schedule/<str:date>/', views.schedule),
 ]

@@ -177,9 +177,9 @@ def schedule(request, date, format=None):
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'GET':
-        weekday = viewing_date.weekday()
+        weekday = viewing_date.weekday() + 1
         times = models.Time.objects.filter(
-            # Q(owner_id=request.user.id),
+            Q(owner_id=request.user.id),
             Q(date_start__lte=viewing_date),
             Q(date_end__gte=viewing_date) | Q(date_end__isnull=True),
             Q(days_of_week__contains=weekday) | Q(days_of_week__isnull=True)
