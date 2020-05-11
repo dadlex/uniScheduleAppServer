@@ -7,7 +7,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from schedule_server import models, serializers
-from schedule_server.models import Task
 from schedule_server.occurances import is_occurrence
 from schedule_server.permissions import IsOwnerOrAdmin
 from schedule_server.serializers import UserSerializer
@@ -184,8 +183,8 @@ def schedule(request, date, format=None):
             Q(date_end__gte=viewing_date) | Q(date_end__isnull=True),
             Q(days_of_week__contains=weekday) | Q(days_of_week__isnull=True)
         )
-        times = [time for time in times
-                 if is_occurrence(viewing_date, time.date_start, datetime.timedelta(int(time.period)))]
+        times = [time for time in times if is_occurrence(
+            viewing_date, time.date_start, datetime.timedelta(int(time.period)) if time.period else None)]
 
         # return db.rawQuery(
         #     """
