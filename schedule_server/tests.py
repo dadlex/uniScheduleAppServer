@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from operator import itemgetter, attrgetter
+from operator import itemgetter
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -100,6 +100,12 @@ class RegistrationTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+        User.objects.create_user(username='simple_user', password='1234').save()
+        self.client.login(username='simple_user', password='1234')
+        url = reverse('user-detail', args=[1])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 
 class LoginTests(APITestCase):
 
@@ -137,9 +143,13 @@ class LoginTests(APITestCase):
 class SubjectTests(APITestCase):
 
     def setUp(self):
-        user = dict(username='test-user', password='test-password')
-        User.objects.create_user(username='test-user', password='test-password').save()
-        self.client.login(**user)
+        self.superuser_credentials = dict(username='admin', password='admin')
+        self.user_credentials = dict(username='user', password='user')
+        self.superuser = User.objects.create_superuser(**self.superuser_credentials)
+        self.user = User.objects.create_user(**self.user_credentials)
+        self.superuser.save()
+        self.user.save()
+        self.client.login(**self.user_credentials)
 
     def test_add_subject(self):
         """FR_Id_16
@@ -156,13 +166,36 @@ class SubjectTests(APITestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    def test_privileges(self):
+        admin_subject = models.Subject(title='Admin subject', color='000000', owner=self.superuser)
+        regular_subject = models.Subject(title='Regular subject', color='000000', owner=self.user)
+        admin_subject.save()
+        regular_subject.save()
+        self.client.login(**self.superuser_credentials)
+        response = self.client.get(reverse('subject-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.SubjectSerializer().to_representation(admin_subject),
+            serializers.SubjectSerializer().to_representation(regular_subject)
+        ])
+        self.client.login(**self.user_credentials)
+        response = self.client.get(reverse('subject-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.SubjectSerializer().to_representation(regular_subject)
+        ])
+
 
 class TeacherTests(APITestCase):
 
     def setUp(self):
-        user = dict(username='test-user', password='test-password')
-        User.objects.create_user(username='test-user', password='test-password').save()
-        self.client.login(**user)
+        self.superuser_credentials = dict(username='admin', password='admin')
+        self.user_credentials = dict(username='user', password='user')
+        self.superuser = User.objects.create_superuser(**self.superuser_credentials)
+        self.user = User.objects.create_user(**self.user_credentials)
+        self.superuser.save()
+        self.user.save()
+        self.client.login(**self.user_credentials)
 
     def test_add_teacher(self):
         """FR_Id20
@@ -181,8 +214,76 @@ class TeacherTests(APITestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    def test_privileges(self):
+        admin_teacher = models.Teacher(name='Admin teacher', owner=self.superuser)
+        regular_teacher = models.Teacher(name='Regular teacher', owner=self.user)
+        admin_teacher.save()
+        regular_teacher.save()
+        self.client.login(**self.superuser_credentials)
+        response = self.client.get(reverse('teacher-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.TeacherSerializer().to_representation(admin_teacher),
+            serializers.TeacherSerializer().to_representation(regular_teacher)
+        ])
+        self.client.login(**self.user_credentials)
+        response = self.client.get(reverse('teacher-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.TeacherSerializer().to_representation(regular_teacher)
+        ])
+
+
+class ClassTypeTests(APITestCase):
+
+    def setUp(self):
+        self.superuser_credentials = dict(username='admin', password='admin')
+        self.user_credentials = dict(username='user', password='user')
+        self.superuser = User.objects.create_superuser(**self.superuser_credentials)
+        self.user = User.objects.create_user(**self.user_credentials)
+        self.superuser.save()
+        self.user.save()
+        self.client.login(**self.user_credentials)
+
+    def test_add_teacher(self):
+        """FR_Id19
+        When selecting a class type, the user can either select an existing type or add a new one
+        """
+        response = self.client.post(reverse('class-type-list'), {
+            'title': 'Test Class Type'
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_privileges(self):
+        admin_class_type = models.ClassType(title='Admin class type', owner=self.superuser)
+        regular_class_type = models.ClassType(title='Regular class type', owner=self.user)
+        admin_class_type.save()
+        regular_class_type.save()
+        self.client.login(**self.superuser_credentials)
+        response = self.client.get(reverse('class-type-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.ClassTypeSerializer().to_representation(admin_class_type),
+            serializers.ClassTypeSerializer().to_representation(regular_class_type)
+        ])
+        self.client.login(**self.user_credentials)
+        response = self.client.get(reverse('class-type-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.ClassTypeSerializer().to_representation(regular_class_type)
+        ])
+
 
 class ClassesTests(APITestCase):
+
+    def setUp(self):
+        self.superuser_credentials = dict(username='admin', password='admin')
+        self.user_credentials = dict(username='user', password='user')
+        self.superuser = User.objects.create_superuser(**self.superuser_credentials)
+        self.user = User.objects.create_user(**self.user_credentials)
+        self.superuser.save()
+        self.user.save()
+        self.client.login(**self.user_credentials)
 
     def test_add_class(self):
         """FR_Id_13
@@ -199,15 +300,6 @@ class ClassesTests(APITestCase):
         7) location of the lesson
         8) teacher
         """
-        username = 'test-user'
-        password = 'test-password'
-        response = self.client.post(reverse('user-list'), {
-            'username': username,
-            'password': password
-        })
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.client.login(username=username, password=password)
-
         response = self.client.post(reverse('subject-list'), {
             'title': 'Test Subject',
             'color': '000000'
@@ -239,7 +331,7 @@ class ClassesTests(APITestCase):
         self.assertEqual(class_.teacher, models.Teacher.objects.get())
         self.assertEqual(class_.location, 'Test Location')
         self.assertTrue(class_.created)
-        self.assertEqual(class_.owner.username, username)
+        self.assertEqual(class_.owner, self.user)
 
         response = self.client.post(reverse('time-list'), {
             'class': models.Class.objects.get().id,
@@ -251,6 +343,69 @@ class ClassesTests(APITestCase):
             'time_end': '12:00',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_privileges(self):
+        admin_subject = models.Subject(title='Admin subject', color='000000', owner=self.superuser)
+        regular_subject = models.Subject(title='Regular subject', color='000000', owner=self.user)
+        admin_subject.save()
+        regular_subject.save()
+        admin_class_type = models.ClassType(title='Admin class type', owner=self.superuser)
+        regular_class_type = models.ClassType(title='Regular class type', owner=self.user)
+        admin_class_type.save()
+        regular_class_type.save()
+        admin_class = models.Class(subject=admin_subject, type=admin_class_type, owner=self.superuser)
+        regular_class = models.Class(subject=regular_subject, type=regular_class_type, owner=self.user)
+        admin_class.save()
+        regular_class.save()
+        self.client.login(**self.superuser_credentials)
+        response = self.client.get(reverse('class-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.ClassSerializer().to_representation(admin_class),
+            serializers.ClassSerializer().to_representation(regular_class)
+        ])
+        self.client.login(**self.user_credentials)
+        response = self.client.get(reverse('class-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.ClassSerializer().to_representation(regular_class)
+        ])
+
+
+class TimeTests(APITestCase):
+
+    def setUp(self):
+        self.superuser_credentials = dict(username='admin', password='admin')
+        self.user_credentials = dict(username='user', password='user')
+        self.superuser = User.objects.create_superuser(**self.superuser_credentials)
+        self.user = User.objects.create_user(**self.user_credentials)
+        self.superuser.save()
+        self.user.save()
+        self.client.login(**self.user_credentials)
+
+    def test_privileges(self):
+        times = []
+        for user in (self.user, self.superuser):
+            subject = models.Subject(title=f'{user.username} subject', color='000000', owner=user)
+            subject.save()
+            class_type = models.ClassType(title=f'{user.username} class type', owner=user)
+            class_type.save()
+            class_ = models.Class(subject=subject, type=class_type, owner=user)
+            class_.save()
+            time = models.Time(**{'class': class_}, period=7, date_start='2020-01-01', date_end='2020-12-31',
+                               days_of_week='1,2', time_start='10:00:00', time_end='11:30:00', owner=user)
+            time.save()
+            times.append(time)
+
+        times = [serializers.TimeSerializer().to_representation(time) for time in times]
+        self.client.login(**self.superuser_credentials)
+        response = self.client.get(reverse('time-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, times)
+        self.client.login(**self.user_credentials)
+        response = self.client.get(reverse('time-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [times[0]])
 
 
 class ScheduleTests(APITestCase):
@@ -328,13 +483,21 @@ class ScheduleTests(APITestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data, schedule)
 
+    def test_schedule_invalid_date(self):
+        response = self.client.get(reverse(views.schedule, kwargs={'date': '2020-13-32'}))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class TaskTests(APITestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(username='test-user', password='test-password')
+        self.superuser_credentials = dict(username='admin', password='admin')
+        self.user_credentials = dict(username='user', password='user')
+        self.superuser = User.objects.create_superuser(**self.superuser_credentials)
+        self.user = User.objects.create_user(**self.user_credentials)
+        self.superuser.save()
         self.user.save()
-        self.client.login(username='test-user', password='test-password')
+        self.client.login(**self.user_credentials)
 
     def test_add_task(self):
         """FR_Id_24
@@ -372,3 +535,22 @@ class TaskTests(APITestCase):
         tasks = sorted(tasks, key=itemgetter('due_date'), reverse=True)
         response = self.client.get(reverse('task-list'))
         self.assertEqual(response.data, tasks)
+
+    def test_privileges(self):
+        admin_task = models.Task(title='Admin task', owner=self.superuser)
+        regular_task = models.Task(title='Regular task', owner=self.user)
+        admin_task.save()
+        regular_task.save()
+        self.client.login(**self.superuser_credentials)
+        response = self.client.get(reverse('task-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.TaskSerializer().to_representation(admin_task),
+            serializers.TaskSerializer().to_representation(regular_task)
+        ])
+        self.client.login(**self.user_credentials)
+        response = self.client.get(reverse('task-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            serializers.TaskSerializer().to_representation(regular_task)
+        ])
