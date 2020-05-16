@@ -437,8 +437,8 @@ class ScheduleTests(APITestCase):
         time1 = models.Time(**c(class1), days_of_week='1,2', time_start='10:00:00', time_end='11:30:00', **common)
         time2 = models.Time(**c(class2), days_of_week='2,3', time_start='12:00:00', time_end='13:30:00', **common)
         time3 = models.Time(**c(class3), days_of_week='3,4', time_start='14:00:00', time_end='15:30:00', **common)
+        time2.save() # shuffle saving order
         time1.save()
-        time2.save()
         time3.save()
         self.schedule_item1 = self.build_schedule_item(class1, time1)
         self.schedule_item2 = self.build_schedule_item(class2, time2)

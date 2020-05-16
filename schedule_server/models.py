@@ -61,6 +61,9 @@ class Time(models.Model):
     time_start = models.TimeField()
     time_end = models.TimeField()
 
+    class Meta:
+        ordering = ['time_start']
+
 
 class Task(models.Model):
     created = models.DateTimeField(auto_now_add=True)
